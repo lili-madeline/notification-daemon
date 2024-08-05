@@ -1,11 +1,9 @@
 use std::collections::HashMap;
 use std::future::pending;
-use std::os::unix::raw::time_t;
-use std::rc::Rc;
-use std::sync::{Arc, LockResult, Mutex, MutexGuard, RwLock};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 use zbus::export::serde::Deserialize;
-use zbus::zvariant::{dbus, DeserializeDict, Type};
+use zbus::zvariant::{DeserializeDict, Type};
 use zbus::{connection, interface, DBusError};
 
 #[derive(DeserializeDict, Type, Debug)]
@@ -56,7 +54,7 @@ impl Notifications {
     }
 
     async fn notify(&mut self, notification: Notification) -> u32 {
-        let mut notif_map = match self.notif_map.lock().unwrap();
+        let mut notif_map = self.notif_map.lock().unwrap();
         let mut count = 1;
         println!("{:?}", notification);
 
@@ -75,13 +73,7 @@ impl Notifications {
     }
 
     async fn close_notification(&mut self, id: u32) -> Result<(), Error> {
-        let mut notif_map = match self.notif_map.lock() {
-            Ok(hashmap) => hashmap,
-            Err(_) => {
-                while self.notif_map.lock().is_err() {}
-                self.notif_map.lock().unwrap()
-            }
-        };
+        let mut notif_map = self.notif_map.lock().unwrap();
         if notif_map.keys().any(|&x| x == id) {
             notif_map.remove(&id);
             Ok(())
@@ -109,19 +101,21 @@ impl Notifications {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> zbus::Result<()> {
     let notif_map = Arc::new(Mutex::new(HashMap::<u32, Notification>::new()));
-    let notification = Notifications { notif_map: notif_map.clone() };
+    let notification = Notifications {
+        notif_map: notif_map.clone(),
+    };
     let _connection = connection::Builder::session()?
         .name("org.freedesktop.Notifications")?
         .serve_at("/org/freedesktop/Notifications", notification)?
         .build()
         .await?;
     let mut time = SystemTime::now();
-    while true {
+    loop {
         if time.elapsed().unwrap_or(Duration::new(0, 0)) >= Duration::new(0, 50000000) {
             println!("{:?}", notif_map.clone().lock().unwrap());
             time = SystemTime::now();
         }
     }
-    pending::<()>().await;
-    Ok(())
+    //pending::<()>().await;
+    //Ok(())
 }
