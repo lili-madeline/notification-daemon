@@ -21,7 +21,4 @@ async fn main() -> zbus::Result<()> {
             time = SystemTime::now();
         }
     }
-
-    //pending::<()>().await;
-    //Ok(())
 }
