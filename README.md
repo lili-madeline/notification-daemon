@@ -1,2 +1,2 @@
-#Lili's Notification Daemon
+# Lili's Notification Daemon
 a simple ewwbar notification daemon
