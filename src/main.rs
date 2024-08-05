@@ -56,7 +56,7 @@ impl Notifications {
     }
 
     async fn notify(&mut self, notification: Notification) -> u32 {
-        let mut notif_map = self.notif_map.lock().unwrap();
+        let mut notif_map = match self.notif_map.lock().unwrap();
         let mut count = 1;
         println!("{:?}", notification);
 
@@ -75,7 +75,13 @@ impl Notifications {
     }
 
     async fn close_notification(&mut self, id: u32) -> Result<(), Error> {
-        let mut notif_map = self.notif_map.lock().unwrap();
+        let mut notif_map = match self.notif_map.lock() {
+            Ok(hashmap) => hashmap,
+            Err(_) => {
+                while self.notif_map.lock().is_err() {}
+                self.notif_map.lock().unwrap()
+            }
+        };
         if notif_map.keys().any(|&x| x == id) {
             notif_map.remove(&id);
             Ok(())
@@ -86,7 +92,7 @@ impl Notifications {
 
     async fn get_server_information(&self) -> (String, String, String, String) {
         (
-            "lili-daemon".to_string(),
+            "lili".to_string(),
             "lili".to_string(),
             "0.1".to_string(),
             "1.2".to_string(),
